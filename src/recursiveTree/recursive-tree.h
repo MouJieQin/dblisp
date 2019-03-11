@@ -198,7 +198,9 @@ class RecTree {
     size_t spaceCount = preSpaceCount;
     switch (tPtr->valueStatus_) {
       case INITAL:
-        lispStr.append("(").append(toLispVal(key())).push_back(')');
+        lispStr.append("(")
+            .append(toLispVal(tPtr->refRealKey()))
+            .push_back(')');
         break;
       case VALUE:
         lispStr.append("(")
@@ -463,15 +465,10 @@ class RecTree {
   }
 
   void pushValue(const std::string& val) {
-    std::cout << "pushValue:" << val << std::endl;
     switch (valueStatus_) {
       case VALUE:
-        std::cout << "VALUE:" << val << std::endl;
         moveValToVec();
-        return;
-        break;
       case VALUE_VECTOR:
-        std::cout << "VALUE_VECTOR:" << val << std::endl;
         refValVector().emplace_back(val);
         return;
         break;
@@ -510,9 +507,10 @@ class RecTree {
   bool isTree() const { return valueStatus_ == RECTREE; }
 
   void moveValToVec() {
-    nodeValue_.valueVec_ = createValVector();
-    nodeValue_.valueVec_->emplace_back(std::move(*nodeValue_.value_));
+    ValType tempVal = std::move(*nodeValue_.value_);
     freeValue();
+    nodeValue_.valueVec_ = createValVector();
+    nodeValue_.valueVec_->emplace_back(std::move(tempVal));
     valueStatus_ = VALUE_VECTOR;
   }
 

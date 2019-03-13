@@ -140,6 +140,27 @@ class DbLispParser {
               break;
             default:
               if (!isspace(c)) {
+                for (size_t startIndex = index;; ++index) {
+                  if (index == lispFileVec[lineIndex].size()) {
+                    wordVecTemp.emplace_back(
+                        lispFileVec[lineIndex].substr(startIndex), VARIABLE);
+                    break;
+                  }
+                  if (lispFileVec[lineIndex][index] == ')') {
+                    wordVecTemp.emplace_back(
+                        lispFileVec[lineIndex].substr(startIndex,
+                                                      index - startIndex),
+                        VARIABLE);
+                    wordVecTemp.emplace_back(")", RIGHT_PARENTHESIS);
+                    break;
+                  } else if (isspace(lispFileVec[lineIndex][index])) {
+                    wordVecTemp.emplace_back(
+                        lispFileVec[lineIndex].substr(startIndex,
+                                                      index - startIndex),
+                        VARIABLE);
+                    break;
+                  }
+                }
               }
               index += 1;
               break;
@@ -178,8 +199,8 @@ class DbLispParser {
 
   bool errorIndexLog(const size_t lineIndex, const size_t index,
                      const std::string& logInfo) {
-    errorLog(std::cerr) << lispFile_ << ":" << lineIndex << ":" << index << ':'
-                        << logInfo << std::endl;
+    errorLog(std::cerr) << lispFile_ << ":" << lineIndex + 1 << ":" << index + 1
+                        << ':' << logInfo << std::endl;
     return false;
   }
 

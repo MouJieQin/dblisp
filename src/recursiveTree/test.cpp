@@ -1,8 +1,11 @@
+#include "dblisp-parser.h"
 #include "gtest/gtest.h"
 #include "recursive-tree.h"
 
+using dblisp::DbLispParser;
 using dblisp::KeyType;
 using dblisp::RecTree;
+using dblisp::recursive_map;
 using dblisp::ValType;
 
 class TestRecursiveTree : public testing::Test {
@@ -118,7 +121,7 @@ TEST_F(TestRecursiveTree, pushValue) {
 }
 
 TEST_F(TestRecursiveTree, formatLisp) {
-  RecTree setRt("set");
+  recursive_map setRt("set");
   setRt["team.showWelcomeMessage"].pushValue("false");
   setRt["editor.fontSize"].pushValue("16");
   setRt["editor.rulers"].pushValue("80");
@@ -139,20 +142,31 @@ TEST_F(TestRecursiveTree, formatLisp) {
   setRt["testVariableName"].pushValue("this is a \nmulti line\ntest");
   setRt["[ol (scheme)]"];
   setRt.formatLisp(std::cout) << std::endl;
-  //   RecTree rt("key");
-  //   rt["key1"]["key2"]["key3"]["key4"].pushValue("this is a test");
-  //   std::vector<std::string> temp{"9", "8", "7", "6"};
-  //   rt["key1"]["key5"]["key3"]["key4"].assign(temp.begin(), temp.end());
-  //   rt["key1"]["key5"].formatLisp(std::cout) << std::endl;
-  //   rt["key1"].formatLisp(std::cout) << std::endl;
-  //   RecTree tempTree1(rt), tempTree2(rt);
-  //   RecTree mergeTree("mt");
-  //   mergeTree.insert({rt, tempTree1, tempTree2});
-  //   EXPECT_EQ(rt.count(), 8);
-  //   EXPECT_EQ(mergeTree.count(), 9);
-  //   std::cout << "value: " <<
-  //   mergeTree["key"]["key1"]["key5"]["key3"]["key4"][0]
-  //             << std::endl;
-  //   rt.formatLisp(std::cout) << std::endl;
-  //   mergeTree.formatLisp(std::cout) << std::endl;
+  RecTree rt("key");
+  rt["key1"]["key2"]["key3"]["key4"].pushValue("this is a test");
+  std::vector<std::string> temp{"9", "8", "7", "6"};
+  rt["key1"]["key5"]["key3"]["key4"].assign(temp.begin(), temp.end());
+  rt["key1"]["key5"].formatLisp(std::cout) << std::endl;
+  rt["key1"].formatLisp(std::cout) << std::endl;
+  RecTree tempTree1(rt), tempTree2(rt);
+  RecTree mergeTree("mt");
+  mergeTree.insert({rt, tempTree1, tempTree2});
+  EXPECT_EQ(rt.count(), 8);
+  EXPECT_EQ(mergeTree.count(), 9);
+  std::cout << "value: " << mergeTree["key"]["key1"]["key5"]["key3"]["key4"][0]
+            << std::endl;
+  rt.formatLisp(std::cout) << std::endl;
+  mergeTree.formatLisp(std::cout) << std::endl;
+}
+
+class TestDbLispParser : public testing::Test {
+ public:
+  TestDbLispParser() {}
+  ~TestDbLispParser(){};
+};
+
+TEST_F(TestDbLispParser, parser) {
+  DbLispParser parser;
+  recursive_map rmap;
+  EXPECT_TRUE(parser.lispToRecMap("parser.scm", rmap));
 }

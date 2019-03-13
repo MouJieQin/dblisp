@@ -10,6 +10,8 @@
 namespace dblisp {
 class RecTree;
 
+using recursive_map = RecTree;
+
 class KeyType {
   using pointer = std::shared_ptr<std::string>;
   friend class RecTree;
@@ -263,9 +265,15 @@ class RecTree {
     return val;
   }
 
-  const std::vector<ValType>& valueVector() const { return refValVector(); }
+  const std::vector<ValType>& valueVector() const {
+    if (isSingleValue()) const_cast<link_type>(this)->moveValToVec();
+    return refValVector();
+  }
 
-  std::vector<ValType>& valueVector() { return refValVector(); }
+  std::vector<ValType>& valueVector() {
+    if (isSingleValue()) moveValToVec();
+    return refValVector();
+  }
 
   key_type key() const { return key_; }
 
@@ -322,30 +330,6 @@ class RecTree {
   }
 
   size_t count() const { return count(this); }
-
-  size_t count(const RecTree* const tree) const {
-    size_t ret = 0;
-    switch (tree->valueStatus_) {
-      case INITAL:
-      case VALUE:
-      case VALUE_VECTOR:
-        ret = 1;
-        break;
-      case RECTREE:
-        ret = tree->countChilren() + 1;
-        break;
-      default:;
-    }
-    return ret;
-  }
-
-  size_t countChilren() const {
-    size_t ret = 0;
-    for (const auto& p : this->refChildren()) {
-      ret += count(p.second);
-    }
-    return ret;
-  }
 
   size_t size() const { return isTree() ? refChildren().size() : 0; }
 
@@ -494,6 +478,30 @@ class RecTree {
   ValType& operator[](const size_t index) { return getValue(index); }
 
  private:
+  size_t count(const RecTree* const tree) const {
+    size_t ret = 0;
+    switch (tree->valueStatus_) {
+      case INITAL:
+      case VALUE:
+      case VALUE_VECTOR:
+        ret = 1;
+        break;
+      case RECTREE:
+        ret = tree->countChilren() + 1;
+        break;
+      default:;
+    }
+    return ret;
+  }
+
+  size_t countChilren() const {
+    size_t ret = 0;
+    for (const auto& p : this->refChildren()) {
+      ret += count(p.second);
+    }
+    return ret;
+  }
+
   ValType& getValue(const size_t index) const {
     if (isSingleValue()) {
       if (index == 0) {

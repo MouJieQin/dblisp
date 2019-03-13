@@ -138,7 +138,10 @@ inline std::ostream& operator<<(std::ostream& outStream, const ValType& value) {
   return outStream;
 }
 
+class DbLispParser;
+
 class RecTree {
+  friend class DbLispParser;
   using key_type = KeyType;
   using link_type = RecTree*;
   enum VALUE_TYPE { VALUE, VALUE_VECTOR, RECTREE, INITAL };

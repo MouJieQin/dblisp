@@ -2,6 +2,7 @@
 #define _DBLISP_DBLISP_PARSER_H_
 #include <fstream>
 #include <iostream>
+#include <stack>
 
 #include "recursive-tree.h"
 
@@ -9,7 +10,9 @@ namespace dblisp {
 
 enum WordType { LEFT_PARENTHESIS, RIGHT_PARENTHESIS, STRING_VALUE, VARIABLE };
 
+class DbLispParser;
 class DbLispWord {
+  friend class DbLispParser;
   friend std::ostream& operator<<(std::ostream& outStream,
                                   const DbLispWord& word);
 
@@ -50,6 +53,71 @@ class DbLispParser {
       std::cout << word << " ";
     }
     std::cout << "\n----------------end----------------------\n";
+    return wordToRecMap(wordVec, rmap);
+  }
+
+  bool wordToRecMap(const std::vector<DbLispWord>& wordVec,
+                    recursive_map& rmap) {
+    enum map_type { MAP_INIT, MAP_MAP, MAP_VALUE, MAP_VARIABLE };
+    using link_type = recursive_map::link_type;
+    link_type tPtr;
+    recursive_map::iterator iter;
+    std::stack<std::pair<link_type, map_type>> mapStk;
+    mapStk.push(std::make_pair(&rmap, MAP_MAP));
+    for (size_t index = 0; index != wordVec.size();) {
+      switch (wordVec[index].wordType_) {
+        case LEFT_PARENTHESIS:
+          index += 1;
+          if (index == wordVec.size()) {
+            return errorLog("`( not close");
+          }
+          switch (wordVec[index].wordType_) {
+            case LEFT_PARENTHESIS:
+              return errorLog("`( must have a key");
+              break;
+            case RIGHT_PARENTHESIS:
+              return errorLog("`() is invalid syntax");
+              break;
+            case STRING_VALUE:
+              tPtr = rmap.createTree(std::move(wordVec[index].value_));
+              mapStk.push(std::make_pair(tPtr, MAP_INIT));
+              break;
+            case VARIABLE:
+              index += 1;
+              if (index == wordVec.size() ||
+                  wordVec[index].wordType_ != RIGHT_PARENTHESIS) {
+                return errorLog("After `(" + wordVec[index].value_ +
+                                "` must be `)` ");
+              }
+              iter = rmap.find(wordVec[index].value_);
+              if (iter == rmap.end()) {
+                return errorLog("Variable `(" + wordVec[index].value_ +
+                                "` is Undefined");
+              }
+              if (mapStk.top().second != MAP_MAP &&
+                  mapStk.top().second != MAP_INIT) {
+                return errorLog("The definition of" +
+                                mapStk.top().first->refRealKey() +
+                                " is ambiguous");
+              }
+              mapStk.top().first->emplace(*iter->second);
+              mapStk.top().second = MAP_MAP;
+              break;
+            default:;
+          }
+          break;
+        case RIGHT_PARENTHESIS:
+
+          break;
+        case STRING_VALUE:
+
+          break;
+        case VARIABLE:
+
+          break;
+        default:;
+      }
+    }
     return true;
   }
 
@@ -169,7 +237,7 @@ class DbLispParser {
       }
     }
     return true;
-  }
+  }  // namespace dblisp
 
  private:
   bool copyToFile(const std::string& inputFile,

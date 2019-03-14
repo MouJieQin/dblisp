@@ -20,15 +20,13 @@ class KeyType {
   friend bool operator<(const KeyType& left, const KeyType& right);
 
  public:
-  // KeyType(void*) : keyPtr_(nullptr) {}
-
   KeyType() : keyPtr_(createPointer("")) {}
 
   explicit KeyType(const std::string& key) : keyPtr_(createPointer(key)) {}
 
-  KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) {  }
-
   KeyType(const KeyType& x) : keyPtr_(x.keyPtr_) {}
+
+  // KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) { x.keyPtr_.reset(); }
 
   void swap(KeyType& x) noexcept { std::swap(keyPtr_, x.keyPtr_); }
 
@@ -47,7 +45,7 @@ class KeyType {
 
  private:
   pointer createPointer(const std::string& key) {
-    return pointer(new std::string(key));
+    return std::make_shared<std::string>(key);
   }
 
   void freePointer(pointer ptr) { keyPtr_.reset(); }
@@ -294,7 +292,6 @@ class RecTree {
   const_iterator cend() const { return refChildren().cend(); }
 
   iterator erase(const_iterator pos) {
-    pos->second->clear();
     freeTree(pos->second);
     return refChildren().erase(pos);
   }
@@ -309,7 +306,6 @@ class RecTree {
 
   iterator erase(const_iterator first, const_iterator last) {
     for (auto pos = first; pos != last; ++pos) {
-      pos->second->clear();
       freeTree(pos->second);
     }
     return refChildren().erase(first, last);
@@ -530,7 +526,6 @@ class RecTree {
 
   void clearChildren() {
     for (const auto& p : this->refChildren()) {
-      p.second->clear();
       freeTree(p.second);
     }
     this->refChildren().clear();
@@ -601,15 +596,15 @@ class RecTree {
 
   template <typename... types>
   link_type createTree(types... args) {
-    link_type tree = (link_type)malloc(sizeof(RecTree));
-    new (tree) RecTree(std::forward<types>(args)...);
+    link_type tree = new RecTree(std::forward<types>(args)...);
     std::cout << "createTree: " << tree->key_ << std::endl;
     return tree;
   }
 
   void freeTree(link_type treePtr) {
     std::cout << "freeTree: " << treePtr->key_ << std::endl;
-    free(treePtr);
+    treePtr->clear();
+    delete treePtr;
   }
 
  private:

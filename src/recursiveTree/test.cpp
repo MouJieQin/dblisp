@@ -103,11 +103,6 @@ TEST_F(TestRecursiveTree, insert) {
   EXPECT_EQ(mergeTree.count(), 9);
   std::cout << "value: " << mergeTree["key"]["key1"]["key5"]["key3"]["key4"][0]
             << std::endl;
-  //   for (const auto &val :
-  //        mergeTree["key1"]["key5"]["key3"]["key4"].valueVector()) {
-  //     std::cout << val << " ";
-  //   }
-  //   std::cout << std::endl;
 }
 
 TEST_F(TestRecursiveTree, pushValue) {
@@ -150,9 +145,8 @@ TEST_F(TestRecursiveTree, formatLisp) {
       .pushValue("#204d68");
   setRt["gitlens.advanced.messages"]["suppressLineUncommittedWarning"]
       .pushValue("true");
-  setRt["gitlens.advanced.messages"]["suppressShowKeyBindingsNotice"]
-      .pushValue(  // test comment
-          "true");
+  setRt["gitlens.advanced.messages"]["suppressShowKeyBindingsNotice"].pushValue(
+      "true");
   setRt["editor.renderWhitespace"].pushValue("all");
   setRt["editor.acceptSuggestionOnEnter"].pushValue("smart");
   setRt["C_Cpp.clang_format_fallbackStyle"].pushValue("");
@@ -190,4 +184,18 @@ TEST_F(TestDbLispParser, parser) {
   std::cout << "+++++++++++++++++++++++\n";
   rmap.formatLisp(std::cout) << std::endl;
   std::cout << "+++++++++++++++++++++++" << std::endl;
+}
+
+TEST_F(TestDbLispParser, DISABLED_memory) {
+  DbLispParser parser;
+  {
+    recursive_map rmap("rmap");
+    for (size_t i = 0; i != 100000; ++i) {
+      EXPECT_TRUE(parser.lispToRecMap("parser.scm", rmap));
+      std::cout << "+++++++++++++++++++++++\n";
+      rmap.formatLisp(std::cout) << std::endl;
+      std::cout << "+++++++++++++++++++++++" << std::endl;
+    }
+  }
+  sleep(20);
 }

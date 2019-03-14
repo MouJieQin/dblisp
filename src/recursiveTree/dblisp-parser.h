@@ -148,6 +148,7 @@ class DbLispParser {
                             "` is ambiguous");
           }
           prIB = mapStk.top().first->emplace(std::move(*top.first));
+          top.first->freeTree(top.first);
           if (!prIB.second) {
             return errorLog("duplicate key `" +
                             prIB.first->second->refRealKey() + "`");
@@ -330,6 +331,7 @@ class DbLispParser {
     for (; getline(inf, buf);) {
       lispFileVecImple.emplace_back(std::move(buf));
     }
+    inf.close();
     lispFileVec.swap(lispFileVecImple);
     return true;
   }

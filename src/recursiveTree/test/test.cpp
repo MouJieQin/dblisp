@@ -1,6 +1,7 @@
-#include "dblisp-parser.h"
 #include "gtest/gtest.h"
-#include "recursive-map.h"
+
+#include "../dblisp-parser.h"
+#include "../recursive-map.h"
 
 using dblisp::DbLispParser;
 using dblisp::KeyType;

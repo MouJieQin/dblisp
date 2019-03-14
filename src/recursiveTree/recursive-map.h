@@ -1,5 +1,5 @@
-#ifndef _DBLISP_RECTREE_H_
-#define _DBLISP_RECTREE_H_
+#ifndef _DBLISP_RECURSIVE_MAP_H_
+#define _DBLISP_RECURSIVE_MAP_H_
 
 #include <iostream>
 #include <map>
@@ -25,8 +25,6 @@ class KeyType {
   explicit KeyType(const std::string& key) : keyPtr_(createPointer(key)) {}
 
   KeyType(const KeyType& x) : keyPtr_(x.keyPtr_) {}
-
-  // KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) { x.keyPtr_.reset(); }
 
   void swap(KeyType& x) noexcept { std::swap(keyPtr_, x.keyPtr_); }
 
@@ -156,10 +154,6 @@ class RecTree {
   using value_const_iterator = std::vector<ValType>::const_iterator;
 
  public:
-  // RecTree(void*) : key_(nullptr), valueStatus_(INITAL) {
-  //   nodeValue_.children_ = nullptr;
-  // }
-
   RecTree() : key_(), valueStatus_(INITAL) { nodeValue_.children_ = nullptr; }
 
   ~RecTree() { clear(); }
@@ -189,82 +183,15 @@ class RecTree {
     std::swap(valueStatus_, x.valueStatus_);
   }
 
-  std::ostream& formatLisp(std::ostream& outStream) {
-    std::string lispStr;
-    formatLisp(this, 0, lispStr);
-    outStream << lispStr;
+  std::ostream& formatLisp(std::ostream& outStream) const {
+    outStream << formatLisp();
     return outStream;
   }
 
-  bool formatLisp(link_type tPtr, size_t preSpaceCount, std::string& lispStr) {
-    std::string lispVal;
-    bool newline = false;
-    size_t spaceCount = preSpaceCount;
-    switch (tPtr->valueStatus_) {
-      case INITAL:
-        lispStr.append("(")
-            .append(toLispVal(tPtr->refRealKey()))
-            .push_back(')');
-        break;
-      case VALUE:
-        lispStr.append("(")
-            .append(toLispVal(tPtr->refRealKey()))
-            .append(" ")
-            .append(toLispVal(tPtr->refRealVal()))
-            .push_back(')');
-        break;
-      case VALUE_VECTOR:
-        lispStr.append("(").append(toLispVal(tPtr->refRealKey()));
-        for (const auto& val : tPtr->refValVector()) {
-          lispStr.append(" ").append(toLispVal(val));
-        }
-        lispStr.push_back(')');
-        break;
-      case RECTREE:
-        lispVal = toLispVal(tPtr->refRealKey());
-        lispStr.append("(").append(lispVal).push_back(' ');
-        if (tPtr->empty()) {
-          lispStr.push_back(')');
-        } else if (tPtr->size() == 1) {
-          preSpaceCount += lispVal.size() + 2;
-          newline =
-              (formatLisp(tPtr->begin()->second, preSpaceCount, lispStr) ||
-               newline);
-          if (newline) {
-            lispStr.push_back('\n');
-            lispStr.append(std::string(spaceCount, ' '));
-          }
-          lispStr.push_back(')');
-        } else {
-          newline = true;
-          preSpaceCount += lispVal.size() + 2;
-          formatLisp(tPtr->begin()->second, preSpaceCount, lispStr);
-          for (auto iter = ++tPtr->begin(); iter != tPtr->end(); ++iter) {
-            lispStr.push_back('\n');
-            lispStr.append(std::string(preSpaceCount, ' '));
-            formatLisp(iter->second, preSpaceCount, lispStr);
-          }
-          lispStr.push_back('\n');
-          lispStr.append(std::string(spaceCount, ' ')).push_back(')');
-        }
-        break;
-      default:;
-    }
-    return newline;
-  }
-
-  std::string toLispVal(const std::string& originVal) const {
-    std::string val("\"");
-    val.reserve(originVal.size());
-    for (const auto& c : originVal) {
-      if (c == '"') {
-        val.append("\\\"");
-      } else {
-        val.push_back(c);
-      }
-    }
-    val.push_back('"');
-    return val;
+  std::string formatLisp() const {
+    std::string lispStr;
+    formatLisp(this, 0, lispStr);
+    return lispStr;
   }
 
   const std::vector<ValType>& valueVector() const {
@@ -406,25 +333,6 @@ class RecTree {
     return *(emplace(key).first->second);
   }
 
-  link_type copy(const RecTree& x) {
-    std::cout << "copy: " << x.key_ << std::endl;
-    this->key_ = key_type(x.refRealKey());
-    this->valueStatus_ = x.valueStatus_;
-    switch (x.valueStatus_) {
-      case VALUE:
-        this->nodeValue_.value_ = this->createValue(x.refRealVal());
-        break;
-      case VALUE_VECTOR:
-        this->nodeValue_.valueVec_ = this->createValVector(x.refValVector());
-        break;
-      case RECTREE:
-        this->nodeValue_.children_ = this->copyChildren(x.refChildren());
-        break;
-      default:;
-    }
-    return this;
-  }
-
   void clear() {
     switch (valueStatus_) {
       case VALUE:
@@ -447,6 +355,8 @@ class RecTree {
   bool isValue() const {
     return isSingleValue() || valueStatus_ == VALUE_VECTOR;
   }
+
+  bool isMap() const { return isTree(); }
 
   void pushValue(const std::string& val) {
     switch (valueStatus_) {
@@ -512,6 +422,78 @@ class RecTree {
   }
 
  private:
+  bool formatLisp(const RecTree* const tPtr, size_t preSpaceCount,
+                  std::string& lispStr) const {
+    std::string lispVal;
+    bool newline = false;
+    size_t spaceCount = preSpaceCount;
+    switch (tPtr->valueStatus_) {
+      case INITAL:
+        lispStr.append("(")
+            .append(toLispVal(tPtr->refRealKey()))
+            .push_back(')');
+        break;
+      case VALUE:
+        lispStr.append("(")
+            .append(toLispVal(tPtr->refRealKey()))
+            .append(" ")
+            .append(toLispVal(tPtr->refRealVal()))
+            .push_back(')');
+        break;
+      case VALUE_VECTOR:
+        lispStr.append("(").append(toLispVal(tPtr->refRealKey()));
+        for (const auto& val : tPtr->refValVector()) {
+          lispStr.append(" ").append(toLispVal(val));
+        }
+        lispStr.push_back(')');
+        break;
+      case RECTREE:
+        lispVal = toLispVal(tPtr->refRealKey());
+        lispStr.append("(").append(lispVal).push_back(' ');
+        if (tPtr->empty()) {
+          lispStr.push_back(')');
+        } else if (tPtr->size() == 1) {
+          preSpaceCount += lispVal.size() + 2;
+          newline =
+              (formatLisp(tPtr->begin()->second, preSpaceCount, lispStr) ||
+               newline);
+          if (newline) {
+            lispStr.push_back('\n');
+            lispStr.append(std::string(spaceCount, ' '));
+          }
+          lispStr.push_back(')');
+        } else {
+          newline = true;
+          preSpaceCount += lispVal.size() + 2;
+          formatLisp(tPtr->begin()->second, preSpaceCount, lispStr);
+          for (auto iter = ++tPtr->begin(); iter != tPtr->end(); ++iter) {
+            lispStr.push_back('\n');
+            lispStr.append(std::string(preSpaceCount, ' '));
+            formatLisp(iter->second, preSpaceCount, lispStr);
+          }
+          lispStr.push_back('\n');
+          lispStr.append(std::string(spaceCount, ' ')).push_back(')');
+        }
+        break;
+      default:;
+    }
+    return newline;
+  }
+
+  std::string toLispVal(const std::string& originVal) const {
+    std::string val("\"");
+    val.reserve(originVal.size());
+    for (const auto& c : originVal) {
+      if (c == '"') {
+        val.append("\\\"");
+      } else {
+        val.push_back(c);
+      }
+    }
+    val.push_back('"');
+    return val;
+  }
+
   bool isTree() const { return valueStatus_ == RECTREE; }
 
   void moveValToVec() {
@@ -523,6 +505,27 @@ class RecTree {
   }
 
   bool isSingleValue() const { return valueStatus_ == VALUE; }
+
+  link_type copy(const RecTree& x) {
+#ifdef _DBLISP_TEST_DEBUG_
+    std::cout << "copy: " << x.key_ << std::endl;
+#endif
+    this->key_ = key_type(x.refRealKey());
+    this->valueStatus_ = x.valueStatus_;
+    switch (x.valueStatus_) {
+      case VALUE:
+        this->nodeValue_.value_ = this->createValue(x.refRealVal());
+        break;
+      case VALUE_VECTOR:
+        this->nodeValue_.valueVec_ = this->createValVector(x.refValVector());
+        break;
+      case RECTREE:
+        this->nodeValue_.children_ = this->copyChildren(x.refChildren());
+        break;
+      default:;
+    }
+    return this;
+  }
 
   void clearChildren() {
     for (const auto& p : this->refChildren()) {
@@ -549,14 +552,18 @@ class RecTree {
   }
 
   ValType* createValue(const std::string& val) {
+#ifdef _DBLISP_TEST_DEBUG_
     std::cout << "createValue: " << val << std::endl;
+#endif
     return new ValType(val);
   }
 
   std::string& refRealKey() const { return *key_.keyPtr_; }
 
   void freeValue() {
+#ifdef _DBLISP_TEST_DEBUG_
     std::cout << "freeValue: " << getValue() << std::endl;
+#endif
     delete nodeValue_.value_;
   }
 
@@ -597,12 +604,16 @@ class RecTree {
   template <typename... types>
   link_type createTree(types... args) {
     link_type tree = new RecTree(std::forward<types>(args)...);
+#ifdef _DBLISP_TEST_DEBUG_
     std::cout << "createTree: " << tree->key_ << std::endl;
+#endif
     return tree;
   }
 
   void freeTree(link_type treePtr) {
+#ifdef _DBLISP_TEST_DEBUG_
     std::cout << "freeTree: " << treePtr->key_ << std::endl;
+#endif
     treePtr->clear();
     delete treePtr;
   }
@@ -613,4 +624,5 @@ class RecTree {
   VALUE_TYPE valueStatus_;
 };
 }  // namespace dblisp
+#undef DBLISP_TEST_DEBUG
 #endif

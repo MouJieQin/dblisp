@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stack>
 
-#include "recursive-tree.h"
+#include "recursive-map.h"
 
 namespace dblisp {
 
@@ -74,11 +74,13 @@ class DbLispParser {
     if (!lispWords(lispFileVec, wordVec)) {
       return false;
     }
+#ifdef _DBLISP_TEST_DEBUG_
     std::cout << "--------------start------------------------\n";
     for (const auto& word : wordVec) {
       std::cout << word << " ";
     }
-    std::cout << "\n----------------end----------------------\n";
+    std::cout << "\n----------------end----------------------" << std::endl;
+#endif
     return wordToRecMap(wordVec, rmap);
   }
 
@@ -210,11 +212,6 @@ class DbLispParser {
     std::string strValue;
     std::vector<DbLispWord> wordVecTemp;
     for (;;) {
-      //   std::cout << "--------------start------------------------\n";
-      //   for (const auto& word : wordVecTemp) {
-      //     std::cout << word << " ";
-      //   }
-      //   std::cout << "\n----------------end----------------------\n";
       if (lineIndex >= lispFileVec.size()) {
         if (!quotClose) {
           return errorIndexLog(openLineIndex, openIndex, "`\" not close");

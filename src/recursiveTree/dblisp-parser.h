@@ -107,16 +107,15 @@ class DbLispParser {
               index += 1;
               break;
             case VARIABLE:
-              index += 1;
-              if (index == wordVec.size() ||
-                  wordVec[index].wordType_ != RIGHT_PARENTHESIS) {
+              if (index + 1 == wordVec.size() ||
+                  wordVec[index + 1].wordType_ != RIGHT_PARENTHESIS) {
                 return errorLog("After `(" + wordVec[index].value_ +
                                 "` must be `)` ");
               }
-              iter = rmap.find(wordVec[index].value_);
-              if (iter == rmap.end()) {
+              if (rmap.empty() ||
+                  (iter = rmap.find(wordVec[index].value_)) == rmap.end()) {
                 return errorLog("Variable `(" + wordVec[index].value_ +
-                                "` is Undefined");
+                                ")` is Undefined");
               }
               if (mapStk.top().second != MAP_MAP &&
                   mapStk.top().second != MAP_INIT) {
@@ -130,6 +129,7 @@ class DbLispParser {
                                 prIB.first->second->refRealKey() + "`");
               }
               mapStk.top().second = MAP_MAP;
+              index += 2;
               break;
             default:;
           }
@@ -171,8 +171,29 @@ class DbLispParser {
           index += 1;
           break;
         case VARIABLE:
-          return errorLog("`\"" + wordVec[index].value_ +
-                          "\" is invalid syntax");
+          if (mapStk.top().second != MAP_VALUE &&
+              mapStk.top().second != MAP_INIT) {
+            return errorLog("The definition of `" +
+                            mapStk.top().first->refRealKey() +
+                            "` is ambiguous");
+          }
+          if (rmap.empty() ||
+              (iter = rmap.find(wordVec[index].value_)) == rmap.end()) {
+            return errorLog("Variable `" + wordVec[index].value_ +
+                            "` is Undefined");
+          }
+          if (!iter->second->isValue()) {
+            return errorLog("Variable `" + wordVec[index].value_ +
+                            "` can not converted into values");
+          }
+          if (iter->second->isSingleValue()) {
+            mapStk.top().first->pushValue(iter->second->refRealVal());
+          } else {
+            for (const auto& val : iter->second->refValVector()) {
+              mapStk.top().first->pushValue(val);
+            }
+          }
+          index += 1;
           break;
         default:;
       }

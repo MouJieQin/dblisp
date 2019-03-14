@@ -26,7 +26,7 @@ class KeyType {
 
   explicit KeyType(const std::string& key) : keyPtr_(createPointer(key)) {}
 
-  // KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) { x.keyPtr_.reset(); }
+  KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) {  }
 
   KeyType(const KeyType& x) : keyPtr_(x.keyPtr_) {}
 

@@ -20,13 +20,13 @@ class KeyType {
   friend bool operator<(const KeyType& left, const KeyType& right);
 
  public:
-  KeyType(void*) : keyPtr_(nullptr) {}
+  // KeyType(void*) : keyPtr_(nullptr) {}
 
   KeyType() : keyPtr_(createPointer("")) {}
 
   explicit KeyType(const std::string& key) : keyPtr_(createPointer(key)) {}
 
-  KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) { x.keyPtr_.reset(); }
+  // KeyType(KeyType&& x) : keyPtr_(x.keyPtr_) { x.keyPtr_.reset(); }
 
   KeyType(const KeyType& x) : keyPtr_(x.keyPtr_) {}
 
@@ -175,6 +175,7 @@ class RecTree {
         nodeValue_(x.nodeValue_),
         valueStatus_(x.valueStatus_) {
     x.valueStatus_ = INITAL;
+    x.nodeValue_.children_ = nullptr;
   }
 
   RecTree(const RecTree& x) { copy(x); }

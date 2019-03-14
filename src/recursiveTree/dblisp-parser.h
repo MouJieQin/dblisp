@@ -31,17 +31,43 @@ std::ostream& operator<<(std::ostream& outStream, const DbLispWord& word) {
 }
 
 class DbLispParser {
+  enum map_type { MAP_INIT, MAP_MAP, MAP_VALUE, MAP_VARIABLE };
+  using link_type = recursive_map::link_type;
+
  public:
+  ~DbLispParser() { clearMapStk(); }
+
   bool lispToRecMap(const std::string& lispFile, recursive_map& rmap) {
     lispFile_ = lispFile;
     std::vector<std::string> lispFileVec;
     if (!copyToFile(lispFile, lispFileVec)) {
       return false;
     }
-    return lispToRecMap(lispFileVec, rmap);
+    recursive_map rmapTemp(rmap.key());
+    clearMapStk();
+    mapStk.push(std::make_pair(&rmapTemp, MAP_MAP));
+    if (!lispToRecMap(lispFileVec, rmapTemp)) {
+      clearMapStk();
+      return false;
+    }
+    rmap.swap(rmapTemp);
+    clearMapStk();
+    return true;
   }
 
  private:
+  void clearMapStk() {
+    if (mapStk.empty()) {
+      return;
+    }
+    for (; mapStk.size() != 1;) {
+      mapStk.top().first->clear();
+      mapStk.top().first->freeTree(mapStk.top().first);
+      mapStk.pop();
+    }
+    mapStk.pop();
+  }
+
   bool lispToRecMap(std::vector<std::string>& lispFileVec,
                     recursive_map& rmap) {
     std::vector<DbLispWord> wordVec;
@@ -56,31 +82,29 @@ class DbLispParser {
     return wordToRecMap(wordVec, rmap);
   }
 
-  bool wordToRecMap(const std::vector<DbLispWord>& wordVec,
-                    recursive_map& rmap) {
-    enum map_type { MAP_INIT, MAP_MAP, MAP_VALUE, MAP_VARIABLE };
-    using link_type = recursive_map::link_type;
+  bool wordToRecMap(std::vector<DbLispWord>& wordVec, recursive_map& rmap) {
     link_type tPtr;
     recursive_map::iterator iter;
-    std::stack<std::pair<link_type, map_type>> mapStk;
-    mapStk.push(std::make_pair(&rmap, MAP_MAP));
+    std::pair<link_type, map_type> top;
+    std::pair<recursive_map::iterator, bool> prIB;
     for (size_t index = 0; index != wordVec.size();) {
       switch (wordVec[index].wordType_) {
         case LEFT_PARENTHESIS:
           index += 1;
           if (index == wordVec.size()) {
-            return errorLog("`( not close");
+            return errorLog("`(` not close");
           }
           switch (wordVec[index].wordType_) {
             case LEFT_PARENTHESIS:
-              return errorLog("`( must have a key");
+              return errorLog("`(` must have a key");
               break;
             case RIGHT_PARENTHESIS:
-              return errorLog("`() is invalid syntax");
+              return errorLog("`()` is invalid syntax");
               break;
             case STRING_VALUE:
-              tPtr = rmap.createTree(std::move(wordVec[index].value_));
-              mapStk.push(std::make_pair(tPtr, MAP_INIT));
+              mapStk.push(std::make_pair(
+                  rmap.createTree(std::move(wordVec[index].value_)), MAP_INIT));
+              index += 1;
               break;
             case VARIABLE:
               index += 1;
@@ -96,29 +120,64 @@ class DbLispParser {
               }
               if (mapStk.top().second != MAP_MAP &&
                   mapStk.top().second != MAP_INIT) {
-                return errorLog("The definition of" +
+                return errorLog("The definition of `" +
                                 mapStk.top().first->refRealKey() +
-                                " is ambiguous");
+                                "` is ambiguous");
               }
-              mapStk.top().first->emplace(*iter->second);
+              prIB = mapStk.top().first->emplace(*iter->second);
+              if (!prIB.second) {
+                return errorLog("duplicate key `" +
+                                prIB.first->second->refRealKey() + "`");
+              }
               mapStk.top().second = MAP_MAP;
               break;
             default:;
           }
           break;
         case RIGHT_PARENTHESIS:
-
+          if (mapStk.size() == 1) {
+            return errorLog("`) not close");
+          }
+          top = mapStk.top();
+          mapStk.pop();
+          if (mapStk.top().second != MAP_MAP &&
+              mapStk.top().second != MAP_INIT) {
+            top.first->freeTree(top.first);
+            return errorLog("The definition of `" +
+                            mapStk.top().first->refRealKey() +
+                            "` is ambiguous");
+          }
+          prIB = mapStk.top().first->emplace(std::move(*top.first));
+          if (!prIB.second) {
+            return errorLog("duplicate key `" +
+                            prIB.first->second->refRealKey() + "`");
+          }
+          mapStk.top().second = MAP_MAP;
+          index += 1;
           break;
         case STRING_VALUE:
-
+          if (mapStk.size() == 1) {
+            return errorLog("`\"" + wordVec[index].value_ +
+                            "\" is invalid syntax");
+          }
+          if (mapStk.top().second != MAP_VALUE &&
+              mapStk.top().second != MAP_INIT) {
+            return errorLog("The definition of `" +
+                            mapStk.top().first->refRealKey() +
+                            "` is ambiguous");
+          }
+          mapStk.top().first->pushValue(wordVec[index].value_);
+          mapStk.top().second = MAP_VALUE;
+          index += 1;
           break;
         case VARIABLE:
-
+          return errorLog("`\"" + wordVec[index].value_ +
+                          "\" is invalid syntax");
           break;
         default:;
       }
     }
-    return true;
+    return mapStk.size() == 1 ? true : errorLog("`(` not close");
   }
 
   bool lispWords(const std::vector<std::string>& lispFileVec,
@@ -256,7 +315,7 @@ class DbLispParser {
 
  private:
   std::ostream& errorLog(std::ostream& ostream) const {
-    ostream << "dblisp: parser: ";
+    ostream << "dblisp: parser: error: ";
     return ostream;
   }
 
@@ -279,6 +338,7 @@ class DbLispParser {
 
  private:
   std::string lispFile_;
+  std::stack<std::pair<link_type, map_type>> mapStk;
 };
 
 }  // namespace dblisp

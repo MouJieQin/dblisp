@@ -120,6 +120,24 @@ TEST_F(TestRecursiveTree, pushValue) {
   EXPECT_EQ(rt["key1"]["key5"]["key3"]["key4"][2].asString(), "7");
 }
 
+TEST_F(TestRecursiveTree, move) {
+  RecTree rt("key");
+  rt["key1"]["key2"]["key3"]["key4"].pushValue("this is a test");
+  rt["key1"]["key5"]["key3"]["key4"].pushValue("9");
+  rt["key1"]["key5"]["key3"]["key4"].pushValue("8");
+  rt["key1"]["key5"]["key3"]["key4"].pushValue("7");
+  rt["key1"]["key5"]["key3"]["key4"].pushValue("6");
+  EXPECT_EQ(rt["key1"]["key5"]["key3"]["key4"][2].asString(), "7");
+  EXPECT_EQ(rt.size(), 1);
+  EXPECT_EQ(rt.count(), 8);
+  RecTree moveRt(std::move(rt));
+  EXPECT_EQ(moveRt["key1"]["key5"]["key3"]["key4"][2].asString(), "7");
+  EXPECT_EQ(rt.size(), 0);
+  EXPECT_EQ(rt.count(), 1);
+  EXPECT_EQ(moveRt.size(), 1);
+  EXPECT_EQ(moveRt.count(), 8);
+}
+
 TEST_F(TestRecursiveTree, formatLisp) {
   recursive_map setRt("set");
   setRt["team.showWelcomeMessage"].pushValue("false");
@@ -167,6 +185,9 @@ class TestDbLispParser : public testing::Test {
 
 TEST_F(TestDbLispParser, parser) {
   DbLispParser parser;
-  recursive_map rmap;
+  recursive_map rmap("rmap");
   EXPECT_TRUE(parser.lispToRecMap("parser.scm", rmap));
+  std::cout << "+++++++++++++++++++++++\n";
+  rmap.formatLisp(std::cout) << std::endl;
+  std::cout << "+++++++++++++++++++++++" << std::endl;
 }

@@ -85,7 +85,6 @@ class DbLispParser {
   }
 
   bool wordToRecMap(std::vector<DbLispWord>& wordVec, recursive_map& rmap) {
-    link_type tPtr;
     recursive_map::iterator iter;
     std::pair<link_type, map_type> top;
     std::pair<recursive_map::iterator, bool> prIB;
@@ -125,10 +124,10 @@ class DbLispParser {
                                 mapStk.top().first->refRealKey() +
                                 "` is ambiguous");
               }
-              prIB = mapStk.top().first->emplace(*iter->second);
+              prIB = mapStk.top().first->emplace(*iter);
               if (!prIB.second) {
-                return errorLog("duplicate key `" +
-                                prIB.first->second->refRealKey() + "`");
+                return errorLog("duplicate key `" + prIB.first->refRealKey() +
+                                "`");
               }
               mapStk.top().second = MAP_MAP;
               index += 2;
@@ -152,8 +151,7 @@ class DbLispParser {
           prIB = mapStk.top().first->emplace(std::move(*top.first));
           top.first->freeTree(top.first);
           if (!prIB.second) {
-            return errorLog("duplicate key `" +
-                            prIB.first->second->refRealKey() + "`");
+            return errorLog("duplicate key `" + prIB.first->refRealKey() + "`");
           }
           mapStk.top().second = MAP_MAP;
           index += 1;
@@ -185,14 +183,14 @@ class DbLispParser {
             return errorLog("Variable `" + wordVec[index].value_ +
                             "` is Undefined");
           }
-          if (!iter->second->isValue()) {
+          if (!iter->isValue()) {
             return errorLog("Variable `" + wordVec[index].value_ +
                             "` can not converted into values");
           }
-          if (iter->second->isSingleValue()) {
-            mapStk.top().first->pushValue(iter->second->refRealVal());
+          if (iter->isSingleValue()) {
+            mapStk.top().first->pushValue(iter->refRealVal());
           } else {
-            for (const auto& val : iter->second->refValVector()) {
+            for (const auto& val : iter->refValVector()) {
               mapStk.top().first->pushValue(val);
             }
           }

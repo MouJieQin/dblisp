@@ -134,10 +134,120 @@ inline std::ostream& operator<<(std::ostream& outStream, const ValType& value) {
   return outStream;
 }
 
+struct RecTree_const_iterator {
+  friend class RecTree;
+
+ public:
+  typedef std::bidirectional_iterator_tag iterator_category;
+  typedef RecTree value_type;
+  typedef const value_type& reference;
+  typedef const value_type* pointer;
+  typedef ptrdiff_t difference_type;
+
+  typedef typename std::map<KeyType, RecTree*>::iterator node_type;
+  typedef RecTree_const_iterator self;
+
+  RecTree_const_iterator() = default;
+
+  RecTree_const_iterator(const node_type& node) : node_(node) {}
+
+  RecTree_const_iterator(const self& x) : node_(x.node_) {}
+
+  bool operator==(const self& x) const { return node_ == x.node_; }
+
+  bool operator!=(const self& x) const { return (!(operator==(x))); }
+
+  self& operator=(const self& x) {
+    node_ = x.node_;
+    return (*this);
+  }
+
+  reference operator*() const { return *node_->second; }
+
+  pointer operator->() const { return (&(operator*())); }
+
+  self& operator--() {
+    --node_;
+    return *this;
+  }
+
+  self& operator++() {
+    ++node_;
+    return *this;
+  }
+
+  self operator++(int) {
+    auto temp = *this;
+    operator++();
+    return temp;
+  }
+
+  self operator--(int) {
+    auto temp = *this;
+    operator--();
+    return (temp);
+  }
+
+ protected:
+  node_type node_;
+};
+
+struct RecTree_iterator : public RecTree_const_iterator {
+  typedef RecTree_const_iterator base_iterator;
+
+  typedef std::bidirectional_iterator_tag iterator_category;
+  typedef typename base_iterator::value_type value_type;
+  typedef value_type& reference;
+  typedef value_type* pointer;
+  typedef ptrdiff_t difference_type;
+
+  typedef typename base_iterator::node_type node_type;
+  typedef RecTree_iterator self;
+
+  RecTree_iterator() = default;
+
+  RecTree_iterator(const node_type& node) : base_iterator(node) {}
+
+  RecTree_iterator(const self& x) : base_iterator(x.node_) {}
+
+  self& operator=(const self& x) {
+    this->node_ = x.node_;
+    return *this;
+  }
+
+  reference operator*() const { return (*this->node_->second); }
+
+  pointer operator->() const { return (&(operator*())); }
+
+  self& operator--() {
+    --this->node_;
+    return *this;
+  }
+
+  self& operator++() {
+    ++this->node_;
+    return *this;
+  }
+
+  self operator--(int) {
+    auto temp = *this;
+    operator--();
+    return temp;
+  }
+
+  self operator++(int) {
+    auto temp = *this;
+    operator++();
+    return temp;
+  }
+};
+
 class DbLispParser;
 
 class RecTree {
   friend class DbLispParser;
+
+ public:
   using key_type = KeyType;
   using link_type = RecTree*;
   enum VALUE_TYPE { VALUE, VALUE_VECTOR, RECTREE, INITAL };
@@ -148,10 +258,11 @@ class RecTree {
   };
 
  public:
-  using iterator = std::map<key_type, link_type>::iterator;
-  using const_iterator = std::map<key_type, link_type>::const_iterator;
-  using value_iterator = std::vector<ValType>::iterator;
-  using value_const_iterator = std::vector<ValType>::const_iterator;
+  typedef RecTree_iterator iterator;
+  typedef RecTree_const_iterator const_iterator;
+
+  typedef std::map<key_type, link_type>::iterator map_iterator;
+  typedef std::map<key_type, link_type>::const_iterator map_const_iterator;
 
  public:
   RecTree() : key_(), valueStatus_(INITAL) { nodeValue_.children_ = nullptr; }
@@ -214,17 +325,16 @@ class RecTree {
 
   const_iterator end() const { return refChildren().end(); }
 
-  const_iterator cbegin() const { return refChildren().cbegin(); }
+  const_iterator cbegin() const { return refChildren().begin(); }
 
-  const_iterator cend() const { return refChildren().cend(); }
+  const_iterator cend() const { return refChildren().end(); }
 
   iterator erase(const_iterator pos) {
-    freeTree(pos->second);
-    return refChildren().erase(pos);
+    freeTree(pos.node_->second);
+    return refChildren().erase(pos.node_);
   }
 
   size_t erase(const std::string& key) {
-    size_t count = 0;
     iterator pos = find(key);
     if (pos == end()) return 0;
     erase(pos);
@@ -233,9 +343,9 @@ class RecTree {
 
   iterator erase(const_iterator first, const_iterator last) {
     for (auto pos = first; pos != last; ++pos) {
-      freeTree(pos->second);
+      freeTree(pos.node_->second);
     }
-    return refChildren().erase(first, last);
+    return refChildren().erase(first.node_, last.node_);
   }
 
   const_iterator find(const std::string& key) const {
@@ -280,7 +390,7 @@ class RecTree {
 
   template <typename... types>
   std::pair<iterator, bool> emplace(const std::string& key, types&&... args) {
-    std::pair<iterator, bool> prIB;
+    std::pair<map_iterator, bool> prIB;
     switch (valueStatus_) {
       case VALUE:
         freeValue();
@@ -294,19 +404,20 @@ class RecTree {
           prIB.first->second =
               createTree(prIB.first->first, std::forward<types>(args)...);
         }
-        return prIB;
+        return {prIB.first, prIB.second};
         break;
       default:;
     }
     valueStatus_ = RECTREE;
     nodeValue_.children_ = createChildren();
     link_type linkTree = createTree(key, std::forward<types>(args)...);
-    return refChildren().emplace(linkTree->key_, linkTree);
+    prIB = refChildren().emplace(linkTree->key_, linkTree);
+    return {prIB.first, prIB.second};
   }
 
   template <typename RecType>
-  std::pair<iterator, bool> emplace(RecType&& recTree) {
-    std::pair<iterator, bool> prIB;
+  std::pair<map_iterator, bool> emplace(RecType&& recTree) {
+    std::pair<map_iterator, bool> prIB;
     switch (valueStatus_) {
       case VALUE:
         freeValue();
@@ -319,19 +430,18 @@ class RecTree {
         if (prIB.second) {
           prIB.first->second = createTree(std::forward<RecType>(recTree));
         }
-        return prIB;
+        return {prIB.first, prIB.second};
         break;
       default:;
     }
     valueStatus_ = RECTREE;
     nodeValue_.children_ = createChildren();
-    return refChildren().emplace(recTree.key_,
+    prIB = refChildren().emplace(recTree.key_,
                                  createTree(std::forward<RecType>(recTree)));
+    return {prIB.first, prIB.second};
   }
 
-  RecTree& operator[](const std::string& key) {
-    return *(emplace(key).first->second);
-  }
+  RecTree& operator[](const std::string& key) { return *(emplace(key).first); }
 
   void clear() {
     switch (valueStatus_) {
@@ -454,9 +564,9 @@ class RecTree {
           lispStr.push_back(')');
         } else if (tPtr->size() == 1) {
           preSpaceCount += lispVal.size() + 2;
-          newline =
-              (formatLisp(tPtr->begin()->second, preSpaceCount, lispStr) ||
-               newline);
+          newline = (formatLisp(tPtr->begin().node_->second, preSpaceCount,
+                                lispStr) ||
+                     newline);
           if (newline) {
             lispStr.push_back('\n');
             lispStr.append(std::string(spaceCount, ' '));
@@ -465,11 +575,11 @@ class RecTree {
         } else {
           newline = true;
           preSpaceCount += lispVal.size() + 2;
-          formatLisp(tPtr->begin()->second, preSpaceCount, lispStr);
+          formatLisp(tPtr->begin().node_->second, preSpaceCount, lispStr);
           for (auto iter = ++tPtr->begin(); iter != tPtr->end(); ++iter) {
             lispStr.push_back('\n');
             lispStr.append(std::string(preSpaceCount, ' '));
-            formatLisp(iter->second, preSpaceCount, lispStr);
+            formatLisp(iter.node_->second, preSpaceCount, lispStr);
           }
           lispStr.push_back('\n');
           lispStr.append(std::string(spaceCount, ' ')).push_back(')');

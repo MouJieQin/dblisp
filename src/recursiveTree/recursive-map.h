@@ -37,6 +37,8 @@ class KeyType {
 
   operator std::string() const { return *keyPtr_; }
 
+  std::string toString() const { return *keyPtr_; }
+
   void clear() { freePointer(keyPtr_); }
 
   bool isNull() const { return keyPtr_.get() == nullptr; }
@@ -105,13 +107,15 @@ class ValType {
 
   operator std::string() const { return asString(); }
 
+  bool asBool() const { return valStr_ != "false"; }
+
   int asInt() const { return std::stoi(valStr_); }
 
   long int asLInt() const { return std::stol(valStr_); }
 
   long long int asLLInt() const { return std::stoll(valStr_); }
 
-  unsigned int asUint() const { return std::stoul(valStr_); }
+  unsigned int asUInt() const { return std::stoul(valStr_); }
 
   unsigned long long int asULLInt() const { return std::stoull(valStr_); }
 
@@ -460,7 +464,14 @@ class RecTree {
   }
 
  public:
-  ValType& getValue() const { return refValue(); }
+  ValType& value(const size_t index = 0) const {
+    if (isSingleValue()) {
+      if (index == 0) {
+        return refValue();
+      }
+    }
+    return (*nodeValue_.valueVec_)[index];
+  }
 
   bool isValue() const {
     return isSingleValue() || valueStatus_ == VALUE_VECTOR;
@@ -491,11 +502,9 @@ class RecTree {
     valueStatus_ = VALUE_VECTOR;
   }
 
-  const ValType& operator[](const size_t index) const {
-    return getValue(index);
-  }
+  const ValType& operator[](const size_t index) const { return value(index); }
 
-  ValType& operator[](const size_t index) { return getValue(index); }
+  ValType& operator[](const size_t index) { return value(index); }
 
  private:
   size_t count(const RecTree* const tree) const {
@@ -520,15 +529,6 @@ class RecTree {
       ret += count(p.second);
     }
     return ret;
-  }
-
-  ValType& getValue(const size_t index) const {
-    if (isSingleValue()) {
-      if (index == 0) {
-        return getValue();
-      }
-    }
-    return (*nodeValue_.valueVec_)[index];
   }
 
  private:
@@ -672,7 +672,7 @@ class RecTree {
 
   void freeValue() {
 #ifdef _DBLISP_TEST_DEBUG_
-    std::cout << "freeValue: " << getValue() << std::endl;
+    std::cout << "freeValue: " << value() << std::endl;
 #endif
     delete nodeValue_.value_;
   }

@@ -1,7 +1,6 @@
 #ifndef _DBLISP_DBLISP_PARSER_H_
 #define _DBLISP_DBLISP_PARSER_H_
 #include <fstream>
-#include <iostream>
 #include <stack>
 
 #include "recursive-map.h"
@@ -11,6 +10,7 @@ namespace dblisp {
 enum WordType { LEFT_PARENTHESIS, RIGHT_PARENTHESIS, STRING_VALUE, VARIABLE };
 
 class DbLispParser;
+
 class DbLispWord {
   friend class DbLispParser;
   friend std::ostream& operator<<(std::ostream& outStream,
@@ -25,10 +25,10 @@ class DbLispWord {
   WordType wordType_;
 };
 
-std::ostream& operator<<(std::ostream& outStream, const DbLispWord& word) {
-  outStream << word.value_;
-  return outStream;
-}
+// std::ostream& operator<<(std::ostream& outStream, const DbLispWord& word) {
+//   outStream << word.value_;
+//   return outStream;
+// }
 
 class DbLispParser {
   enum map_type { MAP_INIT, MAP_MAP, MAP_VALUE, MAP_VARIABLE };
@@ -220,30 +220,35 @@ class DbLispParser {
       if (index >= lispFileVec[lineIndex].size()) {
         index = 0;
         lineIndex += 1;
-      } else {
         if (!quotClose) {
           strValue.push_back('\n');
+        }
+      } else {
+        if (!quotClose) {
           if (lispFileVec[lineIndex][index] == '"') {
             quotClose = true;
             wordVecTemp.emplace_back(std::move(strValue), STRING_VALUE);
             strValue.clear();
             index += 1;
           } else {
+            strValue.push_back(lispFileVec[lineIndex][index]);
             closeIndex = index + 1;
             for (; closeIndex != lispFileVec[lineIndex].size(); ++closeIndex) {
-              if (lispFileVec[lineIndex][closeIndex] == '"' &&
-                  lispFileVec[lineIndex][closeIndex - 1] != '\\') {
-                quotClose = true;
-                strValue.append(lispFileVec[lineIndex].substr(0, closeIndex));
-                wordVecTemp.emplace_back(std::move(strValue), STRING_VALUE);
-                strValue.clear();
-                break;
+              strValue.push_back(lispFileVec[lineIndex][closeIndex]);
+              if (lispFileVec[lineIndex][closeIndex] == '"') {
+                if (lispFileVec[lineIndex][closeIndex - 1] == '\\') {
+                  strValue.pop_back();
+                  strValue.back() = '"';
+                } else {
+                  quotClose = true;
+                  strValue.pop_back();
+                  wordVecTemp.emplace_back(std::move(strValue), STRING_VALUE);
+                  strValue.clear();
+                  break;
+                }
               }
             }
             index = closeIndex + 1;
-            if (!quotClose) {
-              strValue.append(lispFileVec[lineIndex]);
-            }
           }
         } else {
           const char c = lispFileVec[lineIndex][index];
@@ -267,20 +272,21 @@ class DbLispParser {
               closeIndex = index + 1;
               for (; closeIndex != lispFileVec[lineIndex].size();
                    ++closeIndex) {
-                if (lispFileVec[lineIndex][closeIndex] == '"' &&
-                    lispFileVec[lineIndex][closeIndex - 1] != '\\') {
-                  quotClose = true;
-                  wordVecTemp.emplace_back(
-                      lispFileVec[lineIndex].substr(
-                          openIndex + 1, closeIndex - (openIndex + 1)),
-                      STRING_VALUE);
-                  break;
+                strValue.push_back(lispFileVec[lineIndex][closeIndex]);
+                if (lispFileVec[lineIndex][closeIndex] == '"') {
+                  if (lispFileVec[lineIndex][closeIndex - 1] == '\\') {
+                    strValue.pop_back();
+                    strValue.back() = '"';
+                  } else {
+                    quotClose = true;
+                    strValue.pop_back();
+                    wordVecTemp.emplace_back(std::move(strValue), STRING_VALUE);
+                    strValue.clear();
+                    break;
+                  }
                 }
               }
               index = closeIndex + 1;
-              if (!quotClose) {
-                strValue = lispFileVec[lineIndex].substr(openIndex + 1);
-              }
               break;
             default:
               if (!isspace(c)) {
@@ -313,7 +319,7 @@ class DbLispParser {
       }
     }
     return true;
-  }  // namespace dblisp
+  }
 
  private:
   bool copyToFile(const std::string& inputFile,
@@ -333,7 +339,7 @@ class DbLispParser {
 
  private:
   std::ostream& errorLog(std::ostream& ostream) const {
-    ostream << "dblisp: parser: error: ";
+    ostream << "dblisp: parser: error: " << lispFile_ << ":";
     return ostream;
   }
 
@@ -344,8 +350,8 @@ class DbLispParser {
 
   bool errorIndexLog(const size_t lineIndex, const size_t index,
                      const std::string& logInfo) {
-    errorLog(std::cerr) << lispFile_ << ":" << lineIndex + 1 << ":" << index + 1
-                        << ':' << logInfo << std::endl;
+    errorLog(std::cerr) << lineIndex + 1 << ":" << index + 1 << ':' << logInfo
+                        << std::endl;
     return false;
   }
 

@@ -31,7 +31,7 @@ class DbLispWord {
 // }
 
 class DbLispParser {
-  enum map_type { MAP_INIT, MAP_MAP, MAP_VALUE, MAP_VARIABLE };
+  enum map_type { MAP_INIT, MAP_MAP, MAP_VALUE };
   using link_type = recursive_map::link_type;
 
  public:
@@ -88,6 +88,7 @@ class DbLispParser {
     recursive_map::iterator iter;
     std::pair<link_type, map_type> top;
     std::pair<recursive_map::iterator, bool> prIB;
+    map_type mapType;
     for (size_t index = 0; index != wordVec.size();) {
       switch (wordVec[index].wordType_) {
         case LEFT_PARENTHESIS:
@@ -108,29 +109,26 @@ class DbLispParser {
               index += 1;
               break;
             case VARIABLE:
-              if (index + 1 == wordVec.size() ||
-                  wordVec[index + 1].wordType_ != RIGHT_PARENTHESIS) {
-                return errorLog("After `(" + wordVec[index].value_ +
-                                "` must be `)` ");
-              }
               if (rmap.empty() ||
                   (iter = rmap.find(wordVec[index].value_)) == rmap.end()) {
                 return errorLog("Variable `(" + wordVec[index].value_ +
                                 ")` is Undefined");
               }
-              if (mapStk.top().second != MAP_MAP &&
-                  mapStk.top().second != MAP_INIT) {
-                return errorLog("The definition of `" +
-                                mapStk.top().first->refRealKey() +
-                                "` is ambiguous");
+              switch (iter->valueStatus_) {
+                case recursive_map::VALUE_TYPE::VALUE:
+                case recursive_map::VALUE_TYPE::VALUE_VECTOR:
+                  mapType = map_type::MAP_VALUE;
+                  break;
+                case recursive_map::VALUE_TYPE::RECTREE:
+                  mapType = map_type::MAP_MAP;
+                  break;
+                case recursive_map::VALUE_TYPE::INITAL:
+                  mapType = map_type::MAP_INIT;
+                  break;
+                default:;
               }
-              prIB = mapStk.top().first->emplace(*iter);
-              if (!prIB.second) {
-                return errorLog("duplicate key `" + prIB.first->refRealKey() +
-                                "`");
-              }
-              mapStk.top().second = MAP_MAP;
-              index += 2;
+              mapStk.push(std::make_pair(rmap.createTree(*iter), mapType));
+              index += 1;
               break;
             default:;
           }

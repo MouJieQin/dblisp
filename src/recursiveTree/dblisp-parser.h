@@ -181,16 +181,18 @@ class DbLispParser {
             return errorLog("Variable `" + wordVec[index].value_ +
                             "` is Undefined");
           }
-          if (!iter->isValue()) {
+          if (iter->isValue()) {
+            if (iter->isSingleValue()) {
+              mapStk.top().first->pushValue(iter->refRealVal());
+            } else {
+              for (const auto& val : iter->refValVector()) {
+                mapStk.top().first->pushValue(val);
+              }
+            }
+          } else if (iter->isTree()) {
             return errorLog("Variable `" + wordVec[index].value_ +
                             "` can not converted into values");
-          }
-          if (iter->isSingleValue()) {
-            mapStk.top().first->pushValue(iter->refRealVal());
           } else {
-            for (const auto& val : iter->refValVector()) {
-              mapStk.top().first->pushValue(val);
-            }
           }
           index += 1;
           break;
@@ -361,7 +363,7 @@ class DbLispParser {
  private:
   std::string lispFile_;
   std::stack<std::pair<link_type, map_type>> mapStk;
-};
+ };
 
 }  // namespace dblisp
 
